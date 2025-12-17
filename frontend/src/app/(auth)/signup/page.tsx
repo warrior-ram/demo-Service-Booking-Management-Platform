@@ -4,6 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
 import Link from "next/link";
+import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import {
     Form,
@@ -16,6 +17,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
+import { api } from "@/lib/api";
 
 const formSchema = z.object({
     name: z.string().min(2, {
@@ -30,6 +32,7 @@ const formSchema = z.object({
 });
 
 export default function SignupPage() {
+    const { signup } = useAuth();
     const form = useForm<z.infer<typeof formSchema>>({
         resolver: zodResolver(formSchema),
         defaultValues: {
@@ -39,12 +42,21 @@ export default function SignupPage() {
         },
     });
 
-    function onSubmit(values: z.infer<typeof formSchema>) {
-        console.log(values);
-        toast.success("Account created!", {
-            description: "Welcome to ServicePro. Please log in."
-        });
-        // TODO: Connect to backend auth
+    async function onSubmit(values: z.infer<typeof formSchema>) {
+        try {
+            await api.auth.signup({
+                email: values.email,
+                password: values.password,
+                full_name: values.name,
+            });
+            toast.success("Account created!", {
+                description: "Welcome to ServicePro. Please log in."
+            });
+            // Redirect to login after successful signup
+            window.location.href = "/login";
+        } catch (error: any) {
+            toast.error(error.message || "Failed to create account");
+        }
     }
 
     return (

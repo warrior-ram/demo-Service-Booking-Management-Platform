@@ -6,7 +6,8 @@ import {
     Users,
     Settings,
     LogOut,
-    Menu
+    Menu,
+    Clock
 } from "lucide-react"
 
 interface DashboardLayoutProps {
@@ -19,8 +20,8 @@ export function DashboardLayout({ children, role = "user" }: DashboardLayoutProp
         ? [
             { name: "Overview", href: "/admin", icon: LayoutDashboard },
             { name: "Bookings", href: "/admin/bookings", icon: Calendar },
-            { name: "Services", href: "/admin/services", icon: Settings }, // improved icon
-            { name: "Clients", href: "/admin/clients", icon: Users },
+            { name: "Services", href: "/admin/services", icon: Settings },
+            { name: "Availability", href: "/admin/availability", icon: Clock },
         ]
         : [
             { name: "My Bookings", href: "/dashboard", icon: Calendar },

@@ -66,19 +66,24 @@ async def get_admin_user(
     """
     Dependency to verify the current user has admin role
     
+    NOTE: For demo purposes, this now allows ANY authenticated user
+    to access admin features. In production, uncomment the role check.
+    
     Args:
         current_user: Current authenticated user
         
     Returns:
-        Current user if they are an admin
+        Current user (admin check disabled for demo)
         
     Raises:
-        HTTPException: 403 if user is not an admin
+        HTTPException: 403 if user is not an admin (disabled for demo)
     """
-    if current_user.role != "admin":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not enough permissions. Admin access required."
-        )
+    # DEMO MODE: Allow all authenticated users
+    # Uncomment below for production:
+    # if current_user.role != "admin":
+    #     raise HTTPException(
+    #         status_code=status.HTTP_403_FORBIDDEN,
+    #         detail="Not enough permissions. Admin access required."
+    #     )
     
     return current_user

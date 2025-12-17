@@ -4,6 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
 import Link from "next/link";
+import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import {
     Form,
@@ -16,6 +17,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
+import { api } from "@/lib/api";
 
 const formSchema = z.object({
     email: z.string().email({
@@ -27,6 +29,7 @@ const formSchema = z.object({
 });
 
 export default function LoginPage() {
+    const { login } = useAuth();
     const form = useForm<z.infer<typeof formSchema>>({
         resolver: zodResolver(formSchema),
         defaultValues: {
@@ -35,12 +38,20 @@ export default function LoginPage() {
         },
     });
 
-    function onSubmit(values: z.infer<typeof formSchema>) {
-        console.log(values);
-        toast.success("Logged in!", {
-            description: "Redirecting to dashboard..."
-        });
-        // TODO: Connect to backend auth
+    async function onSubmit(values: z.infer<typeof formSchema>) {
+        try {
+            await api.auth.login({
+                email: values.email,
+                password: values.password,
+            });
+            toast.success("Logged in!", {
+                description: "Redirecting to dashboard..."
+            });
+            // Force reload to update auth state/cookies
+            window.location.href = "/dashboard";
+        } catch (error: any) {
+            toast.error(error.message || "Invalid credentials");
+        }
     }
 
     return (

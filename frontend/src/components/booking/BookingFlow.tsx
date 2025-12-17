@@ -1,43 +1,111 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { format } from "date-fns";
+import { useRouter } from "next/navigation";
 import { Calendar } from "@/components/ui/calendar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { CalendarIcon, Clock, Check } from "lucide-react";
-
-// Mock Services
-const SERVICES = [
-    { id: "consulting-1h", name: "1-on-1 Career Strategy (1 hr)", price: 150 },
-    { id: "mock-interview", name: "Mock Interview (45 min)", price: 120 },
-    { id: "resume-review", name: "Resume Overhaul", price: 99 },
-];
-
-// Mock Time Slots
-const TIME_SLOTS = [
-    "09:00 AM", "10:00 AM", "11:00 AM", "01:00 PM", "02:00 PM", "03:00 PM", "04:00 PM"
-];
+import { CalendarIcon, Clock, Check, Loader2 } from "lucide-react";
+import { api } from "@/lib/api";
+import { useAuth } from "@/contexts/AuthContext";
+import type { Service, TimeSlot } from "@/types";
 
 export function BookingFlow() {
-    const [step, setStep] = useState(1);
+    const router = useRouter();
+    const { user } = useAuth();
+    const [services, setServices] = useState<Service[]>([]);
+    const [loadingServices, setLoadingServices] = useState(true);
     const [date, setDate] = useState<Date | undefined>(new Date());
     const [serviceId, setServiceId] = useState<string>("");
-    const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
+    const [availableSlots, setAvailableSlots] = useState<TimeSlot[]>([]);
+    const [loadingSlots, setLoadingSlots] = useState(false);
+    const [selectedSlot, setSelectedSlot] = useState<TimeSlot | null>(null);
+    const [submitting, setSubmitting] = useState(false);
 
-    const selectedService = SERVICES.find(s => s.id === serviceId);
+    const selectedService = services.find(s => s.id === parseInt(serviceId));
 
-    const handleBook = () => {
-        // Logic to submit booking to backend
-        toast.success("Booking Confirmed!", {
-            description: `You are booked for ${selectedService?.name} on ${date ? format(date, "PPP") : ""} at ${selectedSlot}.`
-        });
-        // Reset or redirect
-        setTimeout(() => {
-            window.location.href = "/dashboard";
-        }, 1500);
+    // Fetch services on mount
+    useEffect(() => {
+        const fetchServices = async () => {
+            try {
+                const data = await api.services.getAll();
+                // Filter only active services
+                setServices(data.filter(s => s.is_active));
+            } catch (error) {
+                toast.error("Failed to load services");
+            } finally {
+                setLoadingServices(false);
+            }
+        };
+
+        fetchServices();
+    }, []);
+
+    // Fetch available slots when service and date are selected
+    useEffect(() => {
+        const fetchSlots = async () => {
+            if (!serviceId || !date) {
+                setAvailableSlots([]);
+                setSelectedSlot(null);
+                return;
+            }
+
+            setLoadingSlots(true);
+            try {
+                const formattedDate = format(date, "yyyy-MM-dd");
+                const data = await api.availability.getSlots(parseInt(serviceId), formattedDate);
+                setAvailableSlots(data.available_slots);
+                setSelectedSlot(null); // Reset selected slot when date/service changes
+            } catch (error) {
+                toast.error("Failed to load available time slots");
+                setAvailableSlots([]);
+            } finally {
+                setLoadingSlots(false);
+            }
+        };
+
+        fetchSlots();
+    }, [serviceId, date]);
+
+    const handleBook = async () => {
+        if (!user) {
+            toast.error("Please login to book a session");
+            router.push('/login?redirect=/book');
+            return;
+        }
+
+        if (!selectedService || !date || !selectedSlot) {
+            toast.error("Please complete all booking details");
+            return;
+        }
+
+        setSubmitting(true);
+        try {
+            const bookingData = {
+                service_id: selectedService.id,
+                booking_date: format(date, "yyyy-MM-dd"),
+                start_time: selectedSlot.start_time,
+            };
+
+            await api.bookings.create(bookingData);
+
+            toast.success("Booking Confirmed!", {
+                description: `You are booked for ${selectedService.name} on ${format(date, "PPP")} at ${selectedSlot.start_time}.`
+            });
+
+            setTimeout(() => {
+                router.push("/dashboard");
+            }, 1500);
+        } catch (error) {
+            toast.error("Booking failed", {
+                description: error instanceof Error ? error.message : "Could not complete booking"
+            });
+        } finally {
+            setSubmitting(false);
+        }
     };
 
     return (
@@ -52,18 +120,24 @@ export function BookingFlow() {
                     {/* Step 1: Service */}
                     <div className="space-y-2">
                         <label className="text-sm font-medium">1. Choose Service</label>
-                        <Select onValueChange={setServiceId} defaultValue={serviceId}>
-                            <SelectTrigger>
-                                <SelectValue placeholder="Select a service..." />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {SERVICES.map((s) => (
-                                    <SelectItem key={s.id} value={s.id}>
-                                        {s.name} - ${s.price}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
+                        {loadingServices ? (
+                            <div className="flex items-center justify-center py-4">
+                                <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+                            </div>
+                        ) : (
+                            <Select onValueChange={setServiceId} value={serviceId}>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Select a service..." />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {services.map((s) => (
+                                        <SelectItem key={s.id} value={s.id.toString()}>
+                                            {s.name} - ${s.price}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        )}
                     </div>
 
                     {/* Step 2: Date */}
@@ -84,19 +158,29 @@ export function BookingFlow() {
                     {date && serviceId && (
                         <div className="space-y-2">
                             <label className="text-sm font-medium">3. Available Times</label>
-                            <div className="grid grid-cols-3 gap-2">
-                                {TIME_SLOTS.map((slot) => (
-                                    <Button
-                                        key={slot}
-                                        variant={selectedSlot === slot ? "default" : "outline"}
-                                        size="sm"
-                                        onClick={() => setSelectedSlot(slot)}
-                                        className={selectedSlot === slot ? "bg-primary text-primary-foreground" : ""}
-                                    >
-                                        {slot}
-                                    </Button>
-                                ))}
-                            </div>
+                            {loadingSlots ? (
+                                <div className="flex items-center justify-center py-8">
+                                    <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+                                </div>
+                            ) : availableSlots.length > 0 ? (
+                                <div className="grid grid-cols-3 gap-2">
+                                    {availableSlots.map((slot) => (
+                                        <Button
+                                            key={`${slot.start_time}-${slot.end_time}`}
+                                            variant={selectedSlot?.start_time === slot.start_time ? "default" : "outline"}
+                                            size="sm"
+                                            onClick={() => setSelectedSlot(slot)}
+                                            className={selectedSlot?.start_time === slot.start_time ? "bg-primary text-primary-foreground" : ""}
+                                        >
+                                            {slot.start_time}
+                                        </Button>
+                                    ))}
+                                </div>
+                            ) : (
+                                <div className="text-center py-8 text-muted-foreground text-sm">
+                                    No available time slots for this date
+                                </div>
+                            )}
                         </div>
                     )}
                 </CardContent>
@@ -132,7 +216,7 @@ export function BookingFlow() {
                                     <span className="font-medium">Time</span>
                                     <span className="flex items-center text-muted-foreground">
                                         <Clock className="w-4 h-4 mr-1" />
-                                        {selectedSlot}
+                                        {selectedSlot.start_time}
                                     </span>
                                 </div>
                             )}
@@ -141,11 +225,20 @@ export function BookingFlow() {
                                 <Button
                                     size="lg"
                                     className="w-full"
-                                    disabled={!selectedService || !date || !selectedSlot}
+                                    disabled={!selectedService || !date || !selectedSlot || submitting}
                                     onClick={handleBook}
                                 >
-                                    <Check className="w-4 h-4 mr-2" />
-                                    Confirm Booking
+                                    {submitting ? (
+                                        <>
+                                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                            Processing...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Check className="w-4 h-4 mr-2" />
+                                            Confirm Booking
+                                        </>
+                                    )}
                                 </Button>
                             </div>
                         </div>

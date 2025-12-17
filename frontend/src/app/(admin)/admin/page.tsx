@@ -1,7 +1,46 @@
+"use client";
+
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { DollarSign, Users, Calendar, Activity } from "lucide-react";
+import { DollarSign, Users, Calendar, Activity, Loader2 } from "lucide-react";
+import { api } from "@/lib/api";
+import type { AdminStats } from "@/types";
+import { toast } from "sonner";
 
 export default function AdminDashboardPage() {
+    const [stats, setStats] = useState<AdminStats | null>(null);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        const fetchStats = async () => {
+            try {
+                const data = await api.admin.getStats();
+                setStats(data);
+            } catch (error) {
+                toast.error("Failed to load admin statistics");
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchStats();
+    }, []);
+
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center h-64">
+                <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+            </div>
+        );
+    }
+
+    if (!stats) {
+        return (
+            <div className="text-center py-12 text-muted-foreground">
+                Failed to load statistics
+            </div>
+        );
+    }
     return (
         <div className="space-y-8">
             <div className="flex items-center justify-between">
@@ -12,25 +51,25 @@ export default function AdminDashboardPage() {
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
                 <StatsCard
                     title="Total Revenue"
-                    value="$12,350"
+                    value={`$${stats.total_revenue.toFixed(2)}`}
                     icon={<DollarSign className="h-4 w-4 text-muted-foreground" />}
-                    description="+20.1% from last month"
+                    description="All time earnings"
                 />
                 <StatsCard
-                    title="Active Bookings"
-                    value="+45"
+                    title="Total Bookings"
+                    value={stats.total_bookings.toString()}
                     icon={<Calendar className="h-4 w-4 text-muted-foreground" />}
-                    description="+180.1% from last month"
+                    description={`${stats.pending_bookings} pending, ${stats.confirmed_bookings} confirmed`}
                 />
                 <StatsCard
-                    title="New Clients"
-                    value="+122"
+                    title="Pending Bookings"
+                    value={stats.pending_bookings.toString()}
                     icon={<Users className="h-4 w-4 text-muted-foreground" />}
-                    description="+19% from last month"
+                    description="Awaiting approval"
                 />
                 <StatsCard
                     title="Active Services"
-                    value="3"
+                    value={stats.active_services.toString()}
                     icon={<Activity className="h-4 w-4 text-muted-foreground" />}
                     description="Currently offered"
                 />

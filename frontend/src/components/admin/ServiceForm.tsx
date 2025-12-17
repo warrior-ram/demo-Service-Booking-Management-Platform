@@ -17,19 +17,29 @@ import { Textarea } from "@/components/ui/textarea";
 
 const formSchema = z.object({
     name: z.string().min(2, "Name must be at least 2 characters"),
-    description: z.string().min(10, "Description must be at least 10 characters"),
+    description: z.string().optional(),
     price: z.number().min(1, "Price must be greater than 0"),
-    duration: z.string().min(1, "Duration is required"),
+    duration_minutes: z.number().min(1, "Duration must be greater than 0"),
 });
 
-export function ServiceForm({ onSubmit }: { onSubmit: (values: any) => void }) {
+interface ServiceFormProps {
+    onSubmit: (values: z.infer<typeof formSchema>) => void;
+    initialData?: {
+        name: string;
+        description?: string;
+        price: number;
+        duration_minutes: number;
+    };
+}
+
+export function ServiceForm({ onSubmit, initialData }: ServiceFormProps) {
     const form = useForm<z.infer<typeof formSchema>>({
         resolver: zodResolver(formSchema),
-        defaultValues: {
+        defaultValues: initialData || {
             name: "",
             description: "",
             price: 0,
-            duration: "60 min",
+            duration_minutes: 60,
         },
     });
 
@@ -54,7 +64,7 @@ export function ServiceForm({ onSubmit }: { onSubmit: (values: any) => void }) {
                     name="description"
                     render={({ field }) => (
                         <FormItem>
-                            <FormLabel>Description</FormLabel>
+                            <FormLabel>Description (Optional)</FormLabel>
                             <FormControl>
                                 <Textarea placeholder="Describe the service..." {...field} />
                             </FormControl>
@@ -83,12 +93,17 @@ export function ServiceForm({ onSubmit }: { onSubmit: (values: any) => void }) {
                     />
                     <FormField
                         control={form.control}
-                        name="duration"
+                        name="duration_minutes"
                         render={({ field }) => (
                             <FormItem>
-                                <FormLabel>Duration</FormLabel>
+                                <FormLabel>Duration (minutes)</FormLabel>
                                 <FormControl>
-                                    <Input placeholder="e.g. 60 min" {...field} />
+                                    <Input
+                                        type="number"
+                                        placeholder="60"
+                                        {...field}
+                                        onChange={(e) => field.onChange(e.target.valueAsNumber)}
+                                    />
                                 </FormControl>
                                 <FormMessage />
                             </FormItem>
