@@ -112,13 +112,6 @@ Powerful tools for business owners to manage operations.
 4. **Access the Application**
    - Public site: `http://localhost:3000`
    - API docs: `http://localhost:8000/docs`
-
----
-
-## 📖 Documentation
-
-**[View Full Walkthrough](./WALKTHROUGH/WALKTHROUGH.md)** - Detailed feature showcase with technical architecture
-
 ---
 
 ## 🎯 Project Highlights
@@ -131,14 +124,3 @@ This project demonstrates:
 - ✅ Responsive, accessible UI design
 - ✅ RESTful API design with FastAPI
 
----
-
-## 📬 Contact
-
-**Built by:** [Your Name]  
-**Portfolio:** [Your Portfolio URL]  
-**Available for:** Full-stack development projects, SaaS solutions
-
----
-
-⭐ **Star this repo** if you find it useful for your learning or portfolio!
